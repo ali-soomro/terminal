@@ -19,12 +19,13 @@
 #include <QApplication>
 #include <QTextStream>
 #include <QDebug>
+#include <QRegularExpression>
 
 #include "TerminalCharacterDecoder.h"
 #include "Emulation.h"
 #include "HistorySearch.h"
 
-HistorySearch::HistorySearch(EmulationPtr emulation, QRegExp regExp,
+HistorySearch::HistorySearch(EmulationPtr emulation, QRegularExpression regExp,
         bool forwards, int startColumn, int startLine,
         QObject* parent) :
 QObject(parent),
@@ -41,7 +42,7 @@ HistorySearch::~HistorySearch() {
 void HistorySearch::search() {
     bool found = false;
 
-    if (! m_regExp.isEmpty())
+    if (! m_regExp.pattern().isEmpty())
     {
         if (m_forwards) {
             found = search(m_startColumn, m_startLine, -1, m_emulation->lineCount()) || search(0, 0, m_startColumn, m_startLine);
@@ -103,23 +104,37 @@ bool HistorySearch::search(int startColumn, int startLine, int endColumn, int en
         }
 
         // So now we can log for m_regExp in the string between startColumn and endPosition
-        int matchStart;
+        int matchStart = -1;
+        int matchLength = 0;
         if (m_forwards)
         {
-            matchStart = string.indexOf(m_regExp, startColumn);
-            if (matchStart >= endPosition)
-                matchStart = -1;
+            QRegularExpressionMatch fwdM = m_regExp.match(string, startColumn);
+            if (fwdM.hasMatch() && fwdM.capturedStart() < endPosition) {
+                matchStart = fwdM.capturedStart();
+                matchLength = fwdM.capturedLength();
+            }
         }
         else
         {
-            matchStart = string.lastIndexOf(m_regExp, endPosition - 1);
-            if (matchStart < startColumn)
-                matchStart = -1;
+            // Find last match that starts before endPosition and at/after startColumn
+            QRegularExpressionMatchIterator iter = m_regExp.globalMatch(string);
+            QRegularExpressionMatch lastM;
+            while (iter.hasNext()) {
+                QRegularExpressionMatch m = iter.next();
+                if (m.capturedStart() < endPosition)
+                    lastM = m;
+                else
+                    break;
+            }
+            if (lastM.hasMatch() && lastM.capturedStart() >= startColumn) {
+                matchStart = lastM.capturedStart();
+                matchLength = lastM.capturedLength();
+            }
         }
 
         if (matchStart > -1)
         {
-            int matchEnd = matchStart + m_regExp.matchedLength() - 1;
+            int matchEnd = matchStart + matchLength - 1;
             qDebug() << "Found in string from" << matchStart << "to" << matchEnd;
 
             // Translate startPos and endPos to startColum, startLine, endColumn and endLine in history.

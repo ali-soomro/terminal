@@ -18,6 +18,7 @@
 
 #include <QLayout>
 #include <QBoxLayout>
+#include <QRegularExpression>
 #include <QtDebug>
 #include <QDir>
 #include <QMessageBox>
@@ -159,9 +160,13 @@ void QTermWidget::search(bool forwards, bool next)
     qDebug() << "current selection starts at: " << startColumn << startLine;
     qDebug() << "current cursor position: " << m_impl->m_terminalDisplay->screenWindow()->cursorPosition();
 
-    QRegExp regExp(m_searchBar->searchText());
-    regExp.setPatternSyntax(m_searchBar->useRegularExpression() ? QRegExp::RegExp : QRegExp::FixedString);
-    regExp.setCaseSensitivity(m_searchBar->matchCase() ? Qt::CaseSensitive : Qt::CaseInsensitive);
+    QString searchText = m_searchBar->searchText();
+    if (!m_searchBar->useRegularExpression())
+        searchText = QRegularExpression::escape(searchText);
+    QRegularExpression::PatternOptions patOpts;
+    if (!m_searchBar->matchCase())
+        patOpts |= QRegularExpression::CaseInsensitiveOption;
+    QRegularExpression regExp(searchText, patOpts);
 
     HistorySearch *historySearch =
             new HistorySearch(m_impl->m_session->emulation(), regExp, forwards, startColumn, startLine, this);

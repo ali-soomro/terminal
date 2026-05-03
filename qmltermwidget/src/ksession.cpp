@@ -23,6 +23,8 @@
 // Own
 #include "ksession.h"
 
+#include <QRegularExpression>
+
 // Qt
 #include <QTextCodec>
 #include <QDir>
@@ -70,8 +72,8 @@ Session *KSession::createSession(QString name)
 
     //cool-old-term: There is another check in the code. Not sure if useful.
 
-    QString envshell = getenv("SHELL");
-    QString shellProg = envshell != NULL ? envshell : "/bin/bash";
+    const char* envshellEnv = getenv("SHELL");
+    QString shellProg = envshellEnv ? QString::fromUtf8(envshellEnv) : QStringLiteral("/bin/bash");
     session->setProgram(shellProg);
 
     setenv("TERM", "xterm-256color", 1);
@@ -261,7 +263,7 @@ void KSession::clearScreen()
 
 void KSession::search(const QString &regexp, int startLine, int startColumn, bool forwards)
 {
-    HistorySearch *history = new HistorySearch( QPointer<Emulation>(m_session->emulation()), QRegExp(regexp), forwards, startColumn, startLine, this);
+    HistorySearch *history = new HistorySearch( QPointer<Emulation>(m_session->emulation()), QRegularExpression(regexp), forwards, startColumn, startLine, this);
     connect( history, SIGNAL(matchFound(int,int,int,int)), this, SIGNAL(matchFound(int,int,int,int)));
     connect( history, SIGNAL(noMatchFound()), this, SIGNAL(noMatchFound()));
     history->search();

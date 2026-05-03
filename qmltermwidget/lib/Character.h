@@ -78,8 +78,8 @@ public:
 
   union
   {
-    /** The unicode character value for this character. */
-    wchar_t character;
+    /** The unicode character value for this character (BMP, U+0000–U+FFFF). */
+    quint16 character;
     /**
      * Experimental addition which allows a single Character instance to contain more than
      * one unicode character.

@@ -266,10 +266,30 @@ void Pty::init()
   _windowLines = 0;
   _eraseChar = 0;
   _xonXoff = true;
-  _utf8 =true;
+  _utf8 = true;
 
-  connect(pty(), SIGNAL(readyRead()) , this , SLOT(dataReceived()));
+  connect(pty(), SIGNAL(readyRead()), this, SLOT(dataReceived()));
   setPtyChannels(KPtyProcess::AllChannels);
+
+  setChildProcessModifier([this]() {
+      pty()->setCTty();
+      KPtyProcess::PtyChannels ch = ptyChannels();
+      if (ch & KPtyProcess::StdinChannel)  dup2(pty()->slaveFd(), 0);
+      if (ch & KPtyProcess::StdoutChannel) dup2(pty()->slaveFd(), 1);
+      if (ch & KPtyProcess::StderrChannel) dup2(pty()->slaveFd(), 2);
+
+      // Reset all signal handlers so terminal apps respond to Ctrl+C etc.
+      struct sigaction action;
+      sigset_t sigset;
+      sigemptyset(&action.sa_mask);
+      action.sa_handler = SIG_DFL;
+      action.sa_flags = 0;
+      for (int sig = 1; sig < NSIG; sig++) {
+          sigaction(sig, &action, nullptr);
+          sigaddset(&sigset, sig);
+      }
+      sigprocmask(SIG_UNBLOCK, &sigset, nullptr);
+  });
 }
 
 Pty::~Pty()
@@ -317,22 +337,3 @@ int Pty::foregroundProcessGroup() const
     return 0;
 }
 
-void Pty::setupChildProcess()
-{
-    KPtyProcess::setupChildProcess();
-
-    // reset all signal handlers
-    // this ensures that terminal applications respond to
-    // signals generated via key sequences such as Ctrl+C
-    // (which sends SIGINT)
-    struct sigaction action;
-    sigset_t sigset;
-    sigemptyset(&action.sa_mask);
-    action.sa_handler = SIG_DFL;
-    action.sa_flags = 0;
-    for (int signal=1;signal < NSIG; signal++) {
-        sigaction(signal,&action,0L);
-        sigaddset(&sigset, signal);
-    }
-    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
-}

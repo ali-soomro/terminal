@@ -240,7 +240,7 @@ void TerminalDisplay::setVTFont(const QFont& f)
     //     this ensures the same handling for all platforms
     // but then there was revealed that various Linux distros
     // have this problem too...
-    font.setStyleStrategy(QFont::ForceIntegerMetrics);
+    font.setStyleStrategy(QFont::PreferDefault);
 
     QFontMetrics metrics(font);
 
@@ -334,7 +334,7 @@ TerminalDisplay::TerminalDisplay(QQuickItem *parent)
   , _leftBaseMargin(4)
   , _topBaseMargin(1)
   , m_font("Monospace", 12)
-  , m_colorRole(QPalette::Background)
+  , m_colorRole(QPalette::Window)
   , m_full_cursor_height(false)
   , m_backgroundOpacity(1.0)
 {
@@ -1886,7 +1886,7 @@ void TerminalDisplay::mousePressEvent(QMouseEvent* ev)
             if (spot && spot->type() == Filter::HotSpot::Link)
                 spot->activate(QLatin1String("click-action"));
         }
-    } else if (ev->button() == Qt::MidButton) {
+    } else if (ev->button() == Qt::MiddleButton) {
         if (_mouseMarks || (ev->modifiers() & Qt::ShiftModifier))
             emitSelection(true,ev->modifiers() & Qt::ControlModifier);
         else
@@ -1970,7 +1970,7 @@ void TerminalDisplay::mouseMoveEvent(QMouseEvent* ev)
         int button = 3;
         if (ev->buttons() & Qt::LeftButton)
             button = 0;
-        if (ev->buttons() & Qt::MidButton)
+        if (ev->buttons() & Qt::MiddleButton)
             button = 1;
         if (ev->buttons() & Qt::RightButton)
             button = 2;
@@ -2010,7 +2010,7 @@ void TerminalDisplay::mouseMoveEvent(QMouseEvent* ev)
     if (_actSel == 0) return;
 
     // don't extend selection while pasting
-    if (ev->buttons() & Qt::MidButton)
+    if (ev->buttons() & Qt::MiddleButton)
         return;
 
     extendSelection(ev->pos());
@@ -2264,9 +2264,9 @@ void TerminalDisplay::mouseReleaseEvent(QMouseEvent* ev)
 
   if ( !_mouseMarks &&
        ((ev->button() == Qt::RightButton && !(ev->modifiers() & Qt::ShiftModifier))
-                        || ev->button() == Qt::MidButton) )
+                        || ev->button() == Qt::MiddleButton) )
   {
-    emit mouseSignal( ev->button() == Qt::MidButton ? 1 : 2,
+    emit mouseSignal( ev->button() == Qt::MiddleButton ? 1 : 2,
                       charColumn + 1,
                       charLine + 1 +_scrollBar->value() -_scrollBar->maximum() ,
                       2);
@@ -3188,14 +3188,14 @@ void TerminalDisplay::setMargin(int i)
 
 // QMLTermWidget specific functions ///////////////////////////////////////////
 
-void TerminalDisplay::geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry)
+void TerminalDisplay::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
 {
     if (newGeometry != oldGeometry) {
         resizeEvent(NULL);
         update();
     }
 
-    QQuickPaintedItem::geometryChanged(newGeometry,oldGeometry);
+    QQuickPaintedItem::geometryChange(newGeometry, oldGeometry);
 }
 
 void TerminalDisplay::update(const QRegion &region)
@@ -3319,7 +3319,9 @@ void TerminalDisplay::simulateKeySequence(const QKeySequence &keySequence)
 
 void TerminalDisplay::simulateWheel(int x, int y, int buttons, int modifiers, QPointF angleDelta)
 {
-    QWheelEvent event(QPointF(x,y), angleDelta.y(), (Qt::MouseButton) buttons, (Qt::KeyboardModifier) modifiers);
+    QWheelEvent event(QPointF(x,y), QPointF(x,y), QPoint(), QPoint(0, int(angleDelta.y())),
+                      (Qt::MouseButtons)buttons, (Qt::KeyboardModifiers)modifiers,
+                      Qt::NoScrollPhase, false);
     wheelEvent(&event);
 }
 
